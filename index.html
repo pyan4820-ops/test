@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🧪 你的化学化合物人格测试 💧</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        /* 蓝白清新风 CSS */
+        :root {
+            --bg-color: #f0f9ff; /* 极浅的蓝白色背景 */
+            --card-bg: #ffffff; /* 纯白卡片 */
+            --primary-color: #0ea5e9; /* 天蓝色 */
+            --hover-bg: #e0f2fe; /* 悬浮浅蓝 */
+            --text-main: #0f172a; /* 深灰文字 */
+            --text-sub: #64748b; /* 浅灰文字 */
+        }
+        body {
+            background: linear-gradient(135deg, var(--bg-color), #e0f2fe);
+            color: var(--text-main);
+            font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
+            margin: 0; padding: 20px;
+            display: flex; justify-content: center; align-items: center; min-height: 100vh;
+        }
+        .container {
+            background: var(--card-bg);
+            max-width: 500px; width: 100%;
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(14, 165, 233, 0.1);
+            padding: 30px; box-sizing: border-box;
+            text-align: center;
+        }
+        h1 { font-size: 22px; color: var(--primary-color); margin-bottom: 5px; }
+        .subtitle { font-size: 14px; color: var(--text-sub); margin-bottom: 30px; }
+        
+        /* 题目区域 */
+        #quiz-area { display: block; }
+        .progress { font-size: 14px; color: var(--primary-color); font-weight: bold; margin-bottom: 15px; }
+        .question { font-size: 17px; line-height: 1.6; margin-bottom: 25px; text-align: left; font-weight: 500; }
+        .options { display: flex; flex-direction: column; gap: 12px; }
+        .btn {
+            background: #f8fafc; border: 2px solid #e2e8f0; border-radius: 12px;
+            padding: 16px; font-size: 15px; color: var(--text-main);
+            text-align: left; cursor: pointer; transition: all 0.2s; line-height: 1.5;
+        }
+        .btn:hover { background: var(--hover-bg); border-color: var(--primary-color); transform: translateY(-2px); }
+        
+        /* 结果区域 */
+        #result-area { display: none; }
+        .result-formula { font-size: 36px; font-weight: bold; color: var(--primary-color); margin: 10px 0; letter-spacing: 2px; }
+        .result-title { font-size: 20px; font-weight: bold; margin-bottom: 10px; }
+        .result-desc { font-size: 14px; line-height: 1.7; color: var(--text-sub); text-align: justify; padding: 15px; background: var(--bg-color); border-radius: 12px;}
+        canvas { margin-top: 20px; }
+        
+        .restart-btn {
+            background: var(--primary-color); color: white; border: none;
+            padding: 12px 24px; border-radius: 20px; font-size: 16px;
+            margin-top: 30px; cursor: pointer; width: 100%; box-shadow: 0 4px 10px rgba(14, 165, 233, 0.3);
+        }
+        .restart-btn:hover { opacity: 0.9; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div id="quiz-area">
+        <h1>🧬 化学化合物人格测试 🧪</h1>
+        <p class="subtitle">测测你的灵魂深处藏着哪种分子式</p>
+        <div class="progress" id="progress">1 / 20</div>
+        <div class="question" id="question-text">加载中...</div>
+        <div class="options" id="options-area">
+            </div>
+    </div>
+
+    <div id="result-area">
+        <h1>❄️ 你的核心特质揭晓 ❄️</h1>
+        <div class="result-formula" id="result-formula">H<sub>2</sub>O</div>
+        <div class="result-title" id="result-title">温和治愈者</div>
+        <div class="result-desc" id="result-desc">加载中...</div>
+        <canvas id="radarChart"></canvas>
+        <button class="restart-btn" onclick="location.reload()">再测一次 🔄</button>
+    </div>
+</div>
+
+<script>
+    // 维度得分初始化
+    let scores = { activity: 0, stability: 0, compatibility: 0, volatility: 0, corrosivity: 0, density: 0 };
+    let currentQuestionIndex = 0;
+    let radarChartObj = null;
+
+    // 完整的 20 道去道德化题库
+    const questions = [
+        { q: "1. 明早要小组Pre，有个组员今晚失联，你会：", opts: [
+            { t: "熬夜补救完，提交时附上真实贡献比例，公事公办。", s: { corrosivity: 3, density: 2, compatibility: -2 } },
+            { t: "感到焦虑心累，在群里狂发消息确认他的状态。", s: { activity: 2, stability: -3, compatibility: 1 } },
+            { t: "叹口气帮他做完，觉得团队和谐更重要，大家都不容易。", s: { compatibility: 3, density: 1, corrosivity: -2 } },
+            { t: "丝毫不慌，调整汇报逻辑大不了明天即兴发挥。", s: { volatility: 3, stability: 2, density: -2 } }
+        ]},
+        { q: "2. 发现老师在黑板上写了一个常识错误：", opts: [
+            { t: "查阅确认后，用严谨的逻辑指出，避免大家学错。", s: { corrosivity: 3, density: 2, compatibility: -1 } },
+            { t: "觉得挺有意思，跟同桌小声讨论错误怎么产生的。", s: { volatility: 2, activity: 1, density: -1 } },
+            { t: "默默把正确的批注在笔记上，不打断老师。", s: { stability: 2, density: 1, corrosivity: -2 } },
+            { t: "大脑待机，老师写什么我记什么，下课再复习。", s: { stability: 3, activity: -2, density: -1 } }
+        ]},
+        { q: "3. 实习遇到毫无技术含量且巨多的复制粘贴任务：", opts: [
+            { t: "觉得效率太低，去找一键提取工具或写代码搞定。", s: { volatility: 2, activity: 2, density: -2 } },
+            { t: "戴上耳机当成禅修，按部就班无情死磕完。", s: { density: 3, stability: 2, volatility: -3 } },
+            { t: "看着工作量感到窒息，忍不住经常看手机摸鱼。", s: { stability: -2, volatility: 1, corrosivity: 1 } },
+            { t: "找朋友发微信吐槽，用聊天支撑自己度过无聊。", s: { compatibility: 2, activity: 1, stability: -1 } }
+        ]},
+        { q: "4. 老员工喜欢给你灌输“毒鸡汤”或画大饼：", opts: [
+            { t: "礼貌微笑，左耳进右耳出，内心毫无波澜。", s: { stability: 3, density: 1, activity: -2 } },
+            { t: "顺着话说提供情绪价值，哄高兴了以便后续工作。", s: { compatibility: 3, activity: 1, corrosivity: -2 } },
+            { t: "找个合理借口（回邮件/拿快递）体面地溜走。", s: { volatility: 2, activity: 1, density: -2 } },
+            { t: "明确委婉地将话题强行拉回具体工作，拒绝消耗。", s: { corrosivity: 2, density: 2, compatibility: -2 } }
+        ]},
+        { q: "5. 你的微信聊天风格通常是：", opts: [
+            { t: "表情包大户，思维跳跃，一句话拆成好几句发。", s: { activity: 3, volatility: 2, density: -2 } },
+            { t: "意念回复大师，心里回了但经常忘打字。", s: { stability: 2, activity: -3, compatibility: -2 } },
+            { t: "极其贴心，照顾情绪，习惯加语气词。", s: { compatibility: 3, density: 1, corrosivity: -2 } },
+            { t: "极简主义，只讲重点，能回“好的”绝不多打字。", s: { corrosivity: 1, density: 2, volatility: -2 } }
+        ]},
+        { q: "6. 周末朋友约逛街突然说有事不去了：", opts: [
+            { t: "如释重负，太好了终于可以宅在床上一天了！", s: { stability: 2, activity: -3, density: -1 } },
+            { t: "好天气不能浪费，马上问其他朋友出不出来。", s: { activity: 3, volatility: 1, stability: -1 } },
+            { t: "表示理解，并顺口关心对方是不是遇到麻烦了。", s: { compatibility: 3, density: 1, corrosivity: -1 } },
+            { t: "计划不变，一个人出门逛街看电影也很快乐。", s: { stability: 2, density: 2, compatibility: -2 } }
+        ]},
+        { q: "7. 合租室友半夜外放打游戏影响你休息：", opts: [
+            { t: "严肃提醒对方，明确表达这已经越界了。", s: { corrosivity: 3, density: 1, compatibility: -3 } },
+            { t: "默默戴上降噪耳机，不想发生正面冲突。", s: { stability: 2, density: 1, corrosivity: -1 } },
+            { t: "开玩笑在群里暗示：“宝子太晚啦要修仙吗~”", s: { compatibility: 2, volatility: 1, corrosivity: -1 } },
+            { t: "只要我白天够累，白噪音对我来说不存在。", s: { stability: 3, activity: -2, density: -1 } }
+        ]},
+        { q: "8. 朋友第三次吐槽那个总分不掉的对象：", opts: [
+            { t: "坦诚说：“如果不打算改变，我无法再给建议了”。", s: { corrosivity: 3, density: 2, compatibility: -3 } },
+            { t: "依然耐心倾听，知道对方现在需要情绪出口。", s: { compatibility: 3, stability: -1, corrosivity: -2 } },
+            { t: "像做阅读理解一样帮对方理性盘点利弊和成本。", s: { density: 3, stability: 2, volatility: -2 } },
+            { t: "转移话题，约出去吃顿好的，用快乐覆盖烦恼。", s: { volatility: 2, activity: 2, density: -1 } }
+        ]},
+        { q: "9. 去没吃过的网红餐厅点单：", opts: [
+            { t: "拒绝攻略，看哪个名字顺眼点哪个，主打开盲盒。", s: { volatility: 3, activity: 2, density: -2 } },
+            { t: "仔细研究避雷帖，确保点到性价比最高最稳妥的。", s: { density: 3, stability: 2, volatility: -2 } },
+            { t: "问朋友想吃什么，自己口味包容大家开心最重要。", s: { compatibility: 3, stability: 1, corrosivity: -2 } },
+            { t: "直接让服务员推荐最火的，赶紧点完节省精力。", s: { activity: 1, stability: 1, density: -2 } }
+        ]},
+        { q: "10. 在有许多陌生人的聚会上待两小时：", opts: [
+            { t: "充满新鲜感，主动搭话有趣的人交换联系方式。", s: { activity: 3, compatibility: 2, stability: -1 } },
+            { t: "找角落坐下保持距离，有人搭话才聊两句。", s: { stability: 3, activity: -3, compatibility: -1 } },
+            { t: "感觉能量消耗极快，心里计算何时能体面退场。", s: { stability: -2, compatibility: -2, density: -1 } },
+            { t: "拿点吃的，遇到感兴趣话题插一句，没有就发呆。", s: { volatility: 2, density: -1, activity: 1 } }
+        ]},
+        { q: "11. 网上看到三观完全不合、逻辑奇葩的评论：", opts: [
+            { t: "盘点他逻辑漏洞，截图发给好朋友当笑话看。", s: { corrosivity: 2, activity: 1, compatibility: -2 } },
+            { t: "直接划走，没必要浪费时间，网上什么人都有。", s: { stability: 3, density: 1, activity: -2 } },
+            { t: "试着站他的成长背景去理解为什么会有这种想法。", s: { compatibility: 2, density: 1, corrosivity: -2 } },
+            { t: "点进主页看是何方神圣，像看人类学样本一样观察。", s: { volatility: 2, activity: 1, density: -1 } }
+        ]},
+        { q: "12. 独自打游戏遇到一直过不去的关卡：", opts: [
+            { t: "激起研究欲，查攻略看机制，非要通过技术突破。", s: { density: 3, stability: 2, volatility: -2 } },
+            { t: "逐渐上头情绪波动，不服气地疯狂点击试图翻盘。", s: { activity: 2, stability: -3, density: -1 } },
+            { t: "果断退出干点别的快乐的事，及时止损不找气受。", s: { volatility: 2, stability: 1, density: -2 } },
+            { t: "呼叫列表里的大佬朋友带飞，或者去大厅求助。", s: { compatibility: 2, activity: 1, corrosivity: -1 } }
+        ]},
+        { q: "13. 凌晨两点躺在床上还没睡着，大脑在想：", opts: [
+            { t: "不自觉复盘今天的事，反思哪里没做好有点内耗。", s: { stability: -3, density: -1, compatibility: 1 } },
+            { t: "脑洞大开，设想极其遥远不切实际的剧本(如中奖)。", s: { volatility: 3, activity: 1, density: -2 } },
+            { t: "梳理明天待办事项，或思考关于未来的现实问题。", s: { density: 3, stability: 2, volatility: -2 } },
+            { t: "沾枕头就着的体质，极少出现凌晨两点还在想事。", s: { stability: 3, activity: -2, density: -1 } }
+        ]},
+        { q: "14. 别人对你产生毫无根据的误解：", opts: [
+            { t: "找到当事人条理清晰盘点事实，不带情绪解开误会。", s: { corrosivity: 3, density: 2, stability: 1 } },
+            { t: "感到委屈，渴望向亲近的人倾诉获得情感支持。", s: { stability: -3, compatibility: 2, density: -1 } },
+            { t: "不涉及核心利益就随他怎么想，清者自清懒得解释。", s: { stability: 3, activity: -2, compatibility: -2 } },
+            { t: "用自嘲在朋友圈发动态，顺水推舟化解掉。", s: { volatility: 2, compatibility: 1, density: -1 } }
+        ]},
+        { q: "15. 面对“马上截止但进度是0”的任务：", opts: [
+            { t: "肾上腺素狂飙，在死线前爆发出惊人专注力冲刺。", s: { volatility: 3, activity: 2, stability: -2 } },
+            { t: "极度焦虑，一边自责拖延一边硬着头皮手忙脚乱赶工。", s: { stability: -3, density: -1, compatibility: -1 } },
+            { t: "极少出现，习惯拆解任务按自己的节奏提前做完。", s: { density: 3, stability: 2, volatility: -2 } },
+            { t: "评估情况后，坦诚向老师/领导沟通申请合理延期。", s: { compatibility: 2, density: 1, corrosivity: -2 } }
+        ]},
+        { q: "16. 出门旅游，你通常是什么角色？", opts: [
+            { t: "路线规划师，几点起床吃什么安排得清清楚楚。", s: { density: 3, stability: 2, volatility: -3 } },
+            { t: "顶级陪伴者，不挑行程提供情绪价值，负责赞美。", s: { compatibility: 3, stability: 1, corrosivity: -2 } },
+            { t: "随性探索家，随时可能因路边的一家店改变行程。", s: { volatility: 3, activity: 2, density: -2 } },
+            { t: "佛系度假人，觉得特种兵太累，喜欢在酒店放空。", s: { activity: -3, stability: 2, density: -1 } }
+        ]},
+        { q: "17. 哪种特质最让你对刚认识的人瞬间下头？", opts: [
+            { t: "做事缺乏契约精神，答应的事情经常找借口推脱。", s: { density: 3, stability: 1, volatility: -2 } },
+            { t: "交流时充满傲慢感，缺乏对服务员或弱者的尊重。", s: { compatibility: 2, corrosivity: 2, density: 1 } },
+            { t: "思维非常刻板，完全接不住你抛出的梗或新鲜话题。", s: { volatility: 3, activity: 2, density: -2 } },
+            { t: "是个没有边界感的“粘人精”，过度介入你私人空间。", s: { activity: -2, compatibility: -3, stability: 2 } }
+        ]},
+        { q: "18. 你的房间或书桌常态是什么样的？", opts: [
+            { t: "看似杂乱但有隐形秩序，总能精准摸到你要的东西。", s: { volatility: 2, activity: 1, density: -2 } },
+            { t: "极简风，尽量不放杂物定期清理，随时能打包走人。", s: { stability: 2, density: 2, activity: -2 } },
+            { t: "充满个人色彩，有很多能提供情绪价值的温馨小物件。", s: { compatibility: 3, stability: 1, corrosivity: -1 } },
+            { t: "追求井井有条，所有物品分门别类排列整齐才安心。", s: { density: 3, stability: 2, volatility: -3 } }
+        ]},
+        { q: "19. 社会中的“规则”对你意味着什么？", opts: [
+            { t: "维持运转保护公平的基石，应当被遵守。", s: { density: 3, stability: 2, volatility: -2 } },
+            { t: "一种动态框架，僵化不合理时应该被挑战优化。", s: { corrosivity: 3, volatility: 2, density: -1 } },
+            { t: "为了照顾大家的体面安全感，不伤害他人尽量配合。", s: { compatibility: 3, stability: 1, corrosivity: -2 } },
+            { t: "只要不限制我个人核心自由，就能和平共处。", s: { stability: 3, activity: -2, corrosivity: -1 } }
+        ]},
+        { q: "20. 你觉得自己更像哪种味道？", opts: [
+            { t: "薄荷味。清醒锐利提神醒脑，带点不迎合的清冷感。", s: { corrosivity: 3, density: 2, compatibility: -2 } },
+            { t: "奶茶味。温暖甜糯，容易让人感到放松和被治愈。", s: { compatibility: 3, activity: 1, corrosivity: -2 } },
+            { t: "白开水味。平淡无奇，内核稳定能在任何容器里平静。", s: { stability: 3, activity: -2, density: 1 } },
+            { t: "气泡水味。咕噜冒泡，充满不可预测的跳跃感生命力。", s: { volatility: 3, activity: 3, density: -2 } }
+        ]}
+    ];
+
+    // 8 种结果数据库
+    const resultArchetypes = [
+        { name: "孤岛智者", formula: "He 氦气", profile: { stability: 90, activity: 10, compatibility: 10, volatility: 20, corrosivity: 20, density: 50 },
+          desc: "你拥有罕见的“化学惰性”。边界感极强，极少参与无意义的社交内耗。面对情绪拉扯，你就像氦气一样难以被反应。你不是冷漠，只是在用上帝视角审视规则，保留着最高级别的精神独立。" },
+        { name: "温和治愈者", formula: "H<sub>2</sub>O 水", profile: { compatibility: 90, stability: 80, density: 60, activity: 50, volatility: 30, corrosivity: 10 },
+          desc: "你是团队不可或缺的润滑剂。拥有极高的共情力和包容度，能完美融入各种圈层。你很少展现攻击性，但千万别把你当成软柿子——在压力绝境下，你有着滴水穿石的极高韧性。" },
+        { name: "秩序破坏者", formula: "HF 氢氟酸", profile: { corrosivity: 90, density: 80, compatibility: 10, stability: 40, activity: 60, volatility: 50 },
+          desc: "氢氟酸连玻璃都能腐蚀，这映射了你极其锐利的批判性思维。你极度厌恶表面工程与低效沟通，能一眼看穿事物本质指出漏洞。你的锋芒可能刺痛他人，但你是推动事情前进的清醒者。" },
+        { name: "浪漫灵感家", formula: "C<sub>2</sub>H<sub>5</sub>OH 乙醇", profile: { volatility: 90, activity: 80, compatibility: 80, density: 20, stability: 30, corrosivity: 40 },
+          desc: "你天生拒绝沉闷，思维永远在跳跃，灵感源源不断。你很容易和周围打成一片，是气氛制造机。你不喜欢被死板的计划束缚，更愿意追随当下的直觉与热爱，体验微醺般的自由人生。" },
+        { name: "极致理性者", formula: "C 金刚石", profile: { density: 90, stability: 90, volatility: 10, activity: 30, compatibility: 40, corrosivity: 50 },
+          desc: "你的内核极其坚硬。在面对高压、焦虑时，你的结构不会发生任何动摇。你做事极度靠谱、严谨、认死理。你可能是所有人眼中最值得托付重任的基石，不玩虚的，只拿结果说话。" },
+        { name: "燃烧先锋", formula: "P<sub>4</sub> 白磷", profile: { activity: 90, volatility: 80, stability: 10, corrosivity: 70, density: 30, compatibility: 40 },
+          desc: "你拥有极其充沛的生命能量。遇到感兴趣的事，你的燃点极低，会毫不保留投入全部热情。你敢爱敢恨，宁愿热烈地燃烧自我，也不愿平庸地生锈，是极致的理想主义体验派。" },
+        { name: "入世现实家", formula: "NaCl 氯化钠", profile: { density: 80, compatibility: 70, stability: 70, volatility: 10, activity: 40, corrosivity: 30 },
+          desc: "食盐是生存必需品，正如你。你不追求虚无的幻想，而是脚踏实地解决眼前问题。你既有原则底线，又能极好地适应社会规则。你是最通透的世俗大智者，靠谱且不可或缺。" },
+        { name: "体验狂徒", formula: "多巴胺", profile: { activity: 90, volatility: 90, corrosivity: 70, stability: 30, density: 30, compatibility: 60 },
+          desc: "本质上你代表生命的驱动力。你拒绝一成不变，热衷新鲜感、跳出舒适圈。你敢于打破常规，对世界保持旺盛欲望。你的存在本身就是对无聊世界的最大反叛，永远在追逐下一个快乐巅峰。" }
+    ];
+
+    function renderQuestion() {
+        const qData = questions[currentQuestionIndex];
+        document.getElementById('progress').innerText = `当前进度：${currentQuestionIndex + 1} / 20`;
+        document.getElementById('question-text').innerText = qData.q;
+        
+        const optsArea = document.getElementById('options-area');
+        optsArea.innerHTML = ''; // 清空上一题选项
+        
+        qData.opts.forEach((opt) => {
+            const btn = document.createElement('button');
+            btn.className = 'btn';
+            btn.innerText = opt.t;
+            btn.onclick = () => selectOption(opt.s);
+            optsArea.appendChild(btn);
+        });
+    }
+
+    function selectOption(scoreDelta) {
+        // 累加得分
+        for (let key in scoreDelta) {
+            scores[key] += scoreDelta[key];
+        }
+        
+        currentQuestionIndex++;
+        if (currentQuestionIndex < questions.length) {
+            renderQuestion();
+        } else {
+            calculateAndShowResult();
+        }
+    }
+
+    function calculateAndShowResult() {
+        // 1. 将原始得分(大概在 -20 到 +30 之间)归一化到 0-100 用于雷达图显示
+        let normalizedScores = {};
+        let finalRadarData = [];
+        const keys = ['activity', 'stability', 'compatibility', 'volatility', 'corrosivity', 'density'];
+        
+        keys.forEach(key => {
+            // 简单的数学映射：假设最低-15，最高35，映射到10-95的区间让图表好看
+            let val = ((scores[key] + 15) / 50) * 100;
+            val = Math.max(10, Math.min(100, val)); // 限制在 10-100 之间
+            normalizedScores[key] = val;
+            finalRadarData.push(val);
+        });
+
+        // 2. 匹配最近的化合物人格（计算欧几里得距离）
+        let bestMatch = resultArchetypes[0];
+        let minDistance = Infinity;
+
+        resultArchetypes.forEach(archetype => {
+            let distance = 0;
+            keys.forEach(key => {
+                distance += Math.pow(normalizedScores[key] - archetype.profile[key], 2);
+            });
+            if (distance < minDistance) {
+                minDistance = distance;
+                bestMatch = archetype;
+            }
+        });
+
+        // 3. 切换界面显示结果
+        document.getElementById('quiz-area').style.display = 'none';
+        document.getElementById('result-area').style.display = 'block';
+        
+        document.getElementById('result-formula').innerHTML = bestMatch.formula;
+        document.getElementById('result-title').innerText = bestMatch.name;
+        document.getElementById('result-desc').innerText = bestMatch.desc;
+
+        // 4. 绘制清新蓝色雷达图
+        const ctx = document.getElementById('radarChart').getContext('2d');
+        radarChartObj = new Chart(ctx, {
+            type: 'radar',
+            data: {
+                labels: ['活跃探索', '情绪稳定', '共情相容', '随性挥发', '锋芒批判', '靠谱深度'],
+                datasets: [{
+                    label: '你的化学维系',
+                    data: finalRadarData,
+                    backgroundColor: 'rgba(14, 165, 233, 0.25)', // 半透明主色
+                    borderColor: '#0ea5e9',
+                    pointBackgroundColor: '#ffffff',
+                    pointBorderColor: '#0ea5e9',
+                    pointHoverBackgroundColor: '#fff',
+                    pointHoverBorderColor: '#0ea5e9',
+                    borderWidth: 2,
+                    pointRadius: 4
+                }]
+            },
+            options: {
+                scales: {
+                    r: {
+                        angleLines: { color: 'rgba(100, 116, 139, 0.2)' },
+                        grid: { color: 'rgba(100, 116, 139, 0.2)' },
+                        pointLabels: { color: '#0f172a', font: { size: 13, family: 'sans-serif', weight: 'bold' } },
+                        ticks: { display: false, max: 100, min: 0 } // 隐藏刻度数字
+                    }
+                },
+                plugins: { legend: { display: false } }
+            }
+        });
+    }
+
+    // 初始化第一题
+    renderQuestion();
+</script>
+
+</body>
+</html>
